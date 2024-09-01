@@ -7,6 +7,8 @@
 
 #define WINDOW_WIDTH 600
 #define WINDOW_HEIGHT 400
+#define Row 3
+#define Col 10
 
 typedef struct 
 {
@@ -15,13 +17,19 @@ typedef struct
     int yState ; 
 }shape;
 
+typedef struct 
+{
+    SDL_Rect rect ;
+    int state ;
+}Block;
+
 
 void renderRect(SDL_Renderer *renderer , SDL_Rect rect)
 {
     SDL_SetRenderDrawColor(renderer , 51,255,255,255);
     SDL_RenderFillRect(renderer , &rect);
 }
-void detectHit(shape *square)
+void detectHit(shape *square )
 {
     if ((square->rect.x - 10 >= 0 && square->rect.x + square->rect.w + 10 < WINDOW_WIDTH ) && (square->rect.y - 10 >= 0  && square->rect.y + square->rect.h + 10 < WINDOW_HEIGHT))
     return ;
@@ -63,15 +71,157 @@ void moveRect(shape *square)
 
 }
 
+void renderBase(SDL_Renderer *renderer , SDL_Rect rect)
+{
+    SDL_SetRenderDrawColor(renderer , 255 , 255,255,255);
+    SDL_RenderFillRect(renderer , &rect);
+}
+
+void detectCollisionWithBase(shape *square ,SDL_Rect rect )
+{
+    if(square->rect.y + square->rect.h == rect.y && (square->rect.x  >= rect.x && square->rect.x  <= rect.x + rect.w)  )
+    {
+       switch (square->yState)
+       {
+       case 1:
+        square->yState = 0;
+        break;
+       
+       default:
+        square->yState = 1;       
+        break;
+       }        
+    }
+}
+
+void initilize( int block[Row][Col])
+{
+    for (int i = 0; i < Row; i++)
+    {
+        for (int j = 0; j < Col; j++)
+        {
+            block[i][j]=1;
+        }
+        
+    }
+    
+}
+
+void renderBlocks(SDL_Renderer *renderer , int block[Row][Col])
+{
+                SDL_SetRenderDrawColor(renderer , 255 , 0 , 0 , 255 );
+    int cellsize=60;
+    SDL_Rect rect ;
+    rect.w = cellsize-30 ;
+    rect.h = cellsize-30 ;
+    for (int i = 0; i < Row; i++)
+    {
+        for (int j = 0; j < Col; j++)
+        {
+            if (block[i][j] > 0 )
+            {
+                rect.x = 20 + cellsize * j;
+                rect.y = 2 + cellsize * i;
+                SDL_RenderFillRect(renderer , &rect);
+            }
+        }
+        
+    }
+    
+}
+void detectCrash(int block[Row][Col] , shape *square)
+{
+    for (int i = 0; i < Row; i++)
+    {
+        for (int j = 0; j < Col; j++)
+        {
+            // crash from down the block
+            if ((square->rect.x >= 20 + 60 * j && square->rect.x <= 20 + 60 * j + 30) &&  (square->rect.y  == 2 + 60 * i +30  )  && block[i][j]>0)
+            {
+                block[i][j]=0;
+                switch (square->yState)
+                {
+                case 1:
+                    square->yState = 0;
+                    break;
+                
+                default:
+                    square->yState = 1;       
+                    break;
+                }
+ 
+            }
+            // crash from left the block
+            if ((square->rect.x + square->rect.w == 20 + 60 * j ) &&  (square->rect.y  <= 2 + 60 * i +30  && square->rect.y  >= 2 + 60 * i  )  && block[i][j]>0)
+            {
+                block[i][j]=0;
+                switch (square->xState)
+                {
+                case 1:
+                    square->xState = 0;
+                    break;
+                
+                default:
+                    square->xState = 1;       
+                    break;
+                }
+            }
+            // crash from upside the block
+            if ((square->rect.x  >= 20 + 60 * j && square->rect.x  <= 20 + 60 * j + 30) &&  ( square->rect.y + square->rect.h  == 2 + 60 * i  )  && block[i][j]>0)
+            {
+                block[i][j]=0;
+                switch (square->yState)
+                {
+                case 1:
+                    square->yState = 0;
+                    break;
+                
+                default:
+                    square->yState = 1;       
+                    break;
+                }
+            }
+            // crash from the right of the block
+            if (( square->rect.x  == 20 + 60 * j + 30) &&  (square->rect.y  <= 2 + 60 * i +30  && square->rect.y  >= 2 + 60 * i  )  && block[i][j]>0)
+            {
+                block[i][j]=0;
+                switch (square->xState)
+                {
+                case 1:
+                    square->xState = 0;
+                    break;
+                
+                default:
+                    square->xState = 1;       
+                    break;
+                }
+            }
+
+            
+        }
+        
+    }
+    
+}
+
 
 int main(int argc, char* argv[]) {
     srand(time(0));
-    shape square  ;
+    shape square   ;
     square.rect.h = square.rect.w  = 20 ;
     square.rect.x = WINDOW_WIDTH / 2 ;
     square.rect.y = WINDOW_HEIGHT / 2 ;
     square.xState = 1 ;
     square.yState = 0 ;
+
+    SDL_Rect rect ;
+    rect.w = 100 ;
+    rect.h = 10 ;
+    rect.x = 0 ;
+    rect.y = WINDOW_HEIGHT - rect.h ;
+
+    int block[Row][Col] ;
+    initilize(block);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -79,7 +229,7 @@ int main(int argc, char* argv[]) {
     }
 
 
-    SDL_Window* window = SDL_CreateWindow("snake", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH,WINDOW_HEIGHT , SDL_WINDOW_SHOWN);
+    SDL_Window* window = SDL_CreateWindow("breaking breaks", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, WINDOW_WIDTH,WINDOW_HEIGHT , SDL_WINDOW_SHOWN);
     if (window == NULL) {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_Quit();
@@ -114,6 +264,14 @@ int main(int argc, char* argv[]) {
                     case SDLK_ESCAPE:
                     running=false ;
                     break;
+                    case SDLK_RIGHT:
+                    if(rect.x  + rect.w < WINDOW_WIDTH )
+                    rect.x+=50 ;
+                    break;
+                    case SDLK_LEFT:
+                    if(rect.x   > 0 )                    
+                    rect.x-=50 ;
+                    break;
 
 
                 }
@@ -126,9 +284,13 @@ int main(int argc, char* argv[]) {
 
         // start
         renderRect(renderer, (square.rect));
+        renderBase(renderer , rect) ;
+        renderBlocks(renderer , block) ;
+
         moveRect(&square);
         detectHit(&square);
-
+        detectCollisionWithBase(&square, rect);
+        detectCrash(block , &square);
         // end
 
         SDL_RenderPresent(renderer) ;
